@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagrama de Gantt - Sistema Control de Asistencia</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 25px 30px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .project-info {
+            display: flex;
+            justify-content: space-between;
+            background: #34495e;
+            color: white;
+            padding: 15px 30px;
+            font-size: 0.95rem;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 30px;
+            background: #ecf0f1;
+            border-bottom: 1px solid #bdc3c7;
+        }
+
+        .filter-controls, .view-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        select, button {
+            padding: 8px 15px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            background: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        select:focus, button:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.5);
+        }
+
+        .gantt-container {
+            overflow-x: auto;
+            padding: 20px;
+        }
+
+        .timeline {
+            display: flex;
+            margin-bottom: 10px;
+            margin-left: 250px;
+            border-bottom: 2px solid #7f8c8d;
+        }
+
+        .week {
+            flex: 1;
+            text-align: center;
+            padding: 10px 0;
+            font-weight: 600;
+            color: #2c3e50;
+            min-width: 120px;
+            border-right: 1px solid #bdc3c7;
+        }
+
+        .week:last-child {
+            border-right: none;
+        }
+
+        .gantt-chart {
+            position: relative;
+        }
+
+        .task {
+            display: flex;
+            margin-bottom: 8px;
+            align-items: center;
+            height: 40px;
+        }
+
+        .task-label {
+            width: 250px;
+            padding: 0 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            height: 100%;
+            background: #f8f9fa;
+            border-right: 2px solid #e9ecef;
+            position: relative;
+            z-index: 2;
+        }
+
+        .task-phase {
+            background: #2c3e50;
+            color: white;
+            font-weight: 600;
+            padding-left: 10px;
+        }
+
+        .task-activity {
+            padding-left: 25px;
+            font-size: 0.9rem;
+        }
+
+        .task-bars {
+            display: flex;
+            flex: 1;
+            position: relative;
+            height: 100%;
+        }
+
+        .week-slot {
+            flex: 1;
+            height: 100%;
+            border-right: 1px solid #e9ecef;
+            min-width: 120px;
+        }
+
+        .task-bar {
+            position: absolute;
+            height: 70%;
+            border-radius: 4px;
+            top: 15%;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 500;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .task-bar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .phase-1 { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .phase-2 { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .phase-3 { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .phase-4 { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+
+        .current-week {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: rgba(241, 196, 15, 0.2);
+            z-index: 0;
+            border-left: 2px solid #f1c40f;
+            border-right: 2px solid #f1c40f;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .progress-bar {
+            height: 5px;
+            background: #ecf0f1;
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #2ecc71, #27ae60);
+            border-radius: 3px;
+            width: 25%;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            border-top: 1px solid #e9ecef;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 1100px) {
+            .task-label {
+                width: 200px;
+            }
+            
+            .timeline {
+                margin-left: 200px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .task-label {
+                width: 180px;
+                font-size: 0.85rem;
+            }
+            
+            .timeline {
+                margin-left: 180px;
+            }
+            
+            .week {
+                min-width: 80px;
+            }
+            
+            .week-slot {
+                min-width: 80px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Diagrama de Gantt</h1>
+            <p class="subtitle">Sistema de Control de Asistencia con Código QR - IESTP JVA</p>
+        </header>
+        
+        <div class="project-info">
+            <div><strong>Duración:</strong> 8 semanas</div>
+            <div><strong>Metodología:</strong> Adaptación Ágil RUP</div>
+            <div><strong>Estado:</strong> En planificación</div>
+        </div>
+        
+        <div class="controls">
+            <div class="filter-controls">
+                <span>Filtrar por:</span>
+                <select id="phaseFilter">
+                    <option value="all">Todas las fases</option>
+                    <option value="1">Fase 1: Inicio y Análisis</option>
+                    <option value="2">Fase 2: Desarrollo</option>
+                    <option value="3">Fase 3: Pruebas y Validación</option>
+                    <option value="4">Fase 4: Implementación y Cierre</option>
+                </select>
+                <select id="statusFilter">
+                    <option value="all">Todos los estados</option>
+                    <option value="completed">Completado</option>
+                    <option value="in-progress">En progreso</option>
+                    <option value="pending">Pendiente</option>
+                </select>
+            </div>
+            <div class="view-controls">
+                <button id="zoomIn">Acercar</button>
+                <button id="zoomOut">Alejar</button>
+                <button id="todayBtn">Hoy (Semana 3)</button>
+            </div>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress"></div>
+        </div>
+        
+        <div class="gantt-container">
+            <div class="timeline">
+                <div class="week">Semana 1</div>
+                <div class="week">Semana 2</div>
+                <div class="week">Semana 3</div>
+                <div class="week">Semana 4</div>
+                <div class="week">Semana 5</div>
+                <div class="week">Semana 6</div>
+                <div class="week">Semana 7</div>
+                <div class="week">Semana 8</div>
+            </div>
+            
+            <div class="gantt-chart">
+                <div class="current-week" style="left: 33.33%; width: 16.66%;"></div>
+                
+                <!-- FASE 1: INICIO Y ANÁLISIS -->
+                <div class="task" data-phase="1">
+                    <div class="task-label task-phase">FASE 1: INICIO Y ANÁLISIS</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-1" style="left: 0%; width: 25%;">Semana 1-2</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="1">
+                    <div class="task-label task-activity">1.1 Reunión inicial con stakeholders</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-1" style="left: 0%; width: 12.5%;">Día 1-2</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="1">
+                    <div class="task-label task-activity">1.2 Observación directa del proceso actual</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-1" style="left: 6.25%; width: 6.25%;">Día 3</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="1">
+                    <div class="task-label task-activity">1.3 Aplicación de encuesta de diagnóstico</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-1" style="left: 9.375%; width: 12.5%;">Día 4-5</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="1">
+                    <div class="task-label task-activity">1.4 Definición de requerimientos</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-1" style="left: 15.625%; width: 18.75%;">Día 6-8</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="1">
+                    <div class="task-label task-activity">1.5 Análisis de viabilidad</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-1" style="left: 21.875%; width: 12.5%;">Día 9-10</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="1">
+                    <div class="task-label task-activity">2.1 Diseño de casos de uso</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-1" style="left: 12.5%; width: 12.5%;">Día 1-2</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="1">
+                    <div class="task-label task-activity">2.2 Diseño de base de datos</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-1" style="left: 18.75%; width: 12.5%;">Día 3-4</div>
+                    </div>
+                </div>
+                
+                <!-- FASE 2: DESARROLLO -->
+                <div class="task" data-phase="2">
+                    <div class="task-label task-phase">FASE 2: DESARROLLO</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-2" style="left: 25%; width: 50%;">Semana 3-6</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="2">
+                    <div class="task-label task-activity">3.1 Configuración entorno desarrollo</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-2" style="left: 25%; width: 12.5%;">Día 1-2</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="2">
+                    <div class="task-label task-activity">3.2 Implementación base de datos</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-2" style="left: 31.25%; width: 12.5%;">Día 3-4</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="2">
+                    <div class="task-label task-activity">3.3 Desarrollo capa de modelo</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-2" style="left: 37.5%; width: 18.75%;">Día 5-7</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="2">
+                    <div class="task-label task-activity">3.4 Sistema autenticación</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-2" style="left: 43.75%; width: 18.75%;">Día 8-10</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="2">
+                    <div class="task-label task-activity">5.1 Implementación layout base</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-2" style="left: 50%; width: 12.5%;">Día 1-2</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="2">
+                    <div class="task-label task-activity">5.4 Dashboard interactivo</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-2" style="left: 62.5%; width: 18.75%;">Día 10-12</div>
+                    </div>
+                </div>
+                
+                <!-- FASE 3: PRUEBAS Y VALIDACIÓN -->
+                <div class="task" data-phase="3">
+                    <div class="task-label task-phase">FASE 3: PRUEBAS Y VALIDACIÓN</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-3" style="left: 75%; width: 12.5%;">Semana 7</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="3">
+                    <div class="task-label task-activity">7.1 Pruebas unitarias</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-3" style="left: 75%; width: 12.5%;">Día 1-2</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="3">
+                    <div class="task-label task-activity">7.5 Pruebas piloto con usuarios</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-3" style="left: 81.25%; width: 18.75%;">Día 7-10</div>
+                    </div>
+                </div>
+                
+                <!-- FASE 4: IMPLEMENTACIÓN Y CIERRE -->
+                <div class="task" data-phase="4">
+                    <div class="task-label task-phase">FASE 4: IMPLEMENTACIÓN Y CIERRE</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-4" style="left: 87.5%; width: 12.5%;">Semana 8</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="4">
+                    <div class="task-label task-activity">8.2 Despliegue en producción</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-4" style="left: 90.625%; width: 12.5%;">Día 3-4</div>
+                    </div>
+                </div>
+                
+                <div class="task" data-phase="4">
+                    <div class="task-label task-activity">8.5 Presentación final y cierre</div>
+                    <div class="task-bars">
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="week-slot"></div>
+                        <div class="task-bar phase-4" style="left: 93.75%; width: 6.25%;">Día 8-10</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color phase-1"></div>
+                <span>Fase 1: Inicio y Análisis</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color phase-2"></div>
+                <span>Fase 2: Desarrollo</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color phase-3"></div>
+                <span>Fase 3: Pruebas y Validación</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color phase-4"></div>
+                <span>Fase 4: Implementación y Cierre</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: rgba(241, 196, 15, 0.2); border: 1px solid #f1c40f;"></div>
+                <span>Semana Actual</span>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Diagrama de Gantt - Sistema de Control de Asistencia con Código QR | IESTP JVA | Duración: 8 semanas</p>
+        </footer>
+    </div>
+
+    <script>
+        // Funcionalidad básica para los filtros
+        document.getElementById('phaseFilter').addEventListener('change', function() {
+            const phase = this.value;
+            const tasks = document.querySelectorAll('.task');
+            
+            tasks.forEach(task => {
+                if (phase === 'all' || task.getAttribute('data-phase') === phase) {
+                    task.style.display = 'flex';
+                } else {
+                    task.style.display = 'none';
+                }
+            });
+        });
+        
+        document.getElementById('todayBtn').addEventListener('click', function() {
+            alert('Estás visualizando la semana actual (Semana 3)');
+        });
+        
+        document.getElementById('zoomIn').addEventListener('click', function() {
+            alert('Funcionalidad de zoom acercar');
+        });
+        
+        document.getElementById('zoomOut').addEventListener('click', function() {
+            alert('Funcionalidad de zoom alejar');
+        });
+    </script>
+</body>
+</html>
